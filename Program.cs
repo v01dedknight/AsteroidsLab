@@ -3,83 +3,108 @@ using System.Collections.Generic;
 
 class Program {
   static void Main(string[] args) {
-    AsteroidEmitter emitter = new AsteroidEmitter(5);
-    List<Asteroid> activeAsteroids = new List<Asteroid>();
-    int chroneCounter = 0;
-    Random random = new Random();
+    const int initialPoolSize = 5;
+    const int startAsteroidsCount = 3;
+    const int spawnInterval = 5;
+    const int minSpawn = 1;
+    const int maxSpawn = 4;
 
-    // Нулевой хрон: спавн первых 3х астероидов
-    for (int i = 0; i < 3; i++) {
+    AsteroidEmitter emitter;
+    List<Asteroid> activeAsteroids;
+    Random random;
+    int chroneCounter;
+    int asteroidIndex;
+
+    emitter = new AsteroidEmitter(initialPoolSize);
+    activeAsteroids = new List<Asteroid>();
+    random = new Random();
+    chroneCounter = 0;
+
+    // Начальное наполнение активного списка
+    for (asteroidIndex = 0; asteroidIndex < startAsteroidsCount; ++asteroidIndex) {
       activeAsteroids.Add(emitter.Spawn());
     }
 
     PrintInfo(chroneCounter, activeAsteroids);
 
+    // Главный цикл программы
     while (true) {
-      Console.WriteLine("\nНажмите [Enter] для следующего хрона или [Esc] для выхода...");
-      var key = Console.ReadKey(true).Key;
+      ConsoleKey key;
 
+      Console.WriteLine("\nНажмите [Enter] для следующего хрона или [Esc] для выхода...");
+      key = Console.ReadKey(true).Key;
+
+      // Выход из программы при нажатии [Esc]
       if (key == ConsoleKey.Escape) {
         break;
       }
 
+      // Обработка такта времени при нажатии [Enter]
       if (key == ConsoleKey.Enter) {
-        chroneCounter++;
+        int newAsteroidsCount;
+        bool isSpawnTick;
 
-        // Оповещение всех подписанных объектов о такте времени (паттерн Наблюдателя)
+        chroneCounter++;
+        isSpawnTick = (chroneCounter % spawnInterval == 0);
+
+        // Синхронизация объектов с тактом времени
         ChroneManager.MakeChroneTick();
 
-        // Спавн новых астероидов каждые 5 хронов
-        if (chroneCounter % 5 == 0) {
+        if (isSpawnTick) {
+          int spawnIndex;
+          newAsteroidsCount = random.Next(minSpawn, maxSpawn);
 
-          // От 1 до 3
-          int newAsteroidsCount = random.Next(1, 4);
-
-          for (int i = 0; i < newAsteroidsCount; i++) {
+          for (spawnIndex = 0; spawnIndex < newAsteroidsCount; ++spawnIndex) {
             activeAsteroids.Add(emitter.Spawn());
           }
         }
 
-        // Поиск и утилизация истощенных астероидов (реверс)
-        for (int i = activeAsteroids.Count - 1; i >= 0; i--) {
-          if (activeAsteroids[i].State == AsteroidState.Depleted) {
-            emitter.Recycle(activeAsteroids[i]);
-            activeAsteroids.RemoveAt(i);
+        // Возврат истощенных объектов в пул
+        for (asteroidIndex = activeAsteroids.Count - 1; asteroidIndex >= 0; --asteroidIndex) {
+          if (activeAsteroids[asteroidIndex].State == AsteroidState.Depleted) {
+            emitter.Recycle(activeAsteroids[asteroidIndex]);
+            activeAsteroids.RemoveAt(asteroidIndex);
           }
         }
 
-        // Отрисовка
         PrintInfo(chroneCounter, activeAsteroids);
       }
     }
   }
 
-  // Метод для отображения информации о текущем состоянии астероидов
+  // Метод для отображения информации о текущем состоянии программы
   static void PrintInfo(int chrone, List<Asteroid> activeAsteroids) {
-    Console.Clear();
-    Console.WriteLine($"=== Хрон: {chrone} ===");
-    Console.WriteLine($"Активных астероидов: {activeAsteroids.Count}");
-    Console.WriteLine(new string('-', 50));
+    const int lineLength = 50;
+    const int criticalResourceLevel = 200;
+    const int mediumResourceLevel = 500;
 
+    Console.Clear();
+    Console.WriteLine($"=== Хрон: {chrone} ==="+
+    "Активных астероидов: {activeAsteroids.Count}"+
+    new string('-', lineLength));
+
+    // Вывод информации о каждом активном астероиде с цветовой индикацией уровня ресурсов
     if (activeAsteroids.Count == 0) {
       Console.WriteLine("Нет активных астероидов.");
-    } else {
-      foreach (var ast in activeAsteroids) {
-        // Подсвечиваем цветом для красоты
-        if (ast.CurrentEchos <= 200) {
+    }
+    else {
+      foreach (var currentAsteroid in activeAsteroids) {
+        // Установка цвета в зависимости от остатка ресурсов
+        if (currentAsteroid.CurrentEchos <= criticalResourceLevel) {
           Console.ForegroundColor = ConsoleColor.Red;
         }
-        else if (ast.CurrentEchos <= 500) {
+        else if (currentAsteroid.CurrentEchos <= mediumResourceLevel) {
           Console.ForegroundColor = ConsoleColor.DarkYellow;
         }
         else {
           Console.ForegroundColor = ConsoleColor.Green;
         }
 
-        Console.WriteLine(ast.ToString());
+        Console.WriteLine(currentAsteroid.ToString());
         Console.ResetColor();
       }
     }
-    Console.WriteLine(new string('-', 50));
+
+    Console.WriteLine(new string('-', lineLength));
   }
 }
